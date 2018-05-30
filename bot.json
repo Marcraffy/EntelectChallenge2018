@@ -1,0 +1,8 @@
+{
+	"author": "Marc Raftesath",
+	"email": "marcraffy@gmail.com",
+	"nickName": "Marc",
+	"botLocation": "/StarterBot/bin/Debug/netcoreapp2.0",
+	"botFileName": "StarterBot.dll",
+	"botLanguage": "c#core"
+}
