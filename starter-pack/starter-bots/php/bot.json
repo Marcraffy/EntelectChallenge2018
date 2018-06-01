@@ -1,8 +1,0 @@
-{
-	"author":"John Doe",
-	"email":"john.doe@example.com",
-	"nickName" :"Engelbert",
-	"botLocation": "/",
-	"botFileName": "StarterBot.php",
-	"botLanguage": "php"
-}

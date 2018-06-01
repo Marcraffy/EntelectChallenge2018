@@ -1,8 +1,0 @@
-{
-	"author":"John Doe",
-	"email":"john.doe@example.com",
-	"nickName" :"Bob",
-	"botLocation": "/",
-	"botFileName": "starterbot.go",
-	"botLanguage": "golang"
-}

@@ -19,6 +19,17 @@ namespace StarterBot
         private readonly Player player;
         private readonly Random random;
 
+        private IEnumerable<CellStateContainer> myAttackBuildings;
+        private IEnumerable<CellStateContainer> myDefenceBuildings;
+        private IEnumerable<CellStateContainer> myEnergyBuildings;
+        private IEnumerable<CellStateContainer> myBuildings { get { return myAttackBuildings.Concat(myDefenceBuildings.Concat(myEnergyBuildings)); } }
+
+        private IEnumerable<CellStateContainer> enemyAttackBuildings;
+        private IEnumerable<CellStateContainer> enemyDefenceBuildings;
+        private IEnumerable<CellStateContainer> enemyEnergyBuildings;
+        private IEnumerable<CellStateContainer> enemyBuildings { get { return myAttackBuildings.Concat(myDefenceBuildings.Concat(myEnergyBuildings)); } }
+        private IEnumerable<CellStateContainer> allBuildings { get { return myBuildings.Concat(enemyBuildings); } }
+
         public Bot(GameState gameState)
         {
             this.gameState = gameState;
@@ -28,6 +39,14 @@ namespace StarterBot
             attackStats = gameState.GameDetails.BuildingsStats[BuildingType.Attack];
             defenseStats = gameState.GameDetails.BuildingsStats[BuildingType.Defense];
             energyStats = gameState.GameDetails.BuildingsStats[BuildingType.Energy];
+
+            myAttackBuildings = GetBuildings(PlayerType.A, BuildingType.Attack);
+            myDefenceBuildings = GetBuildings(PlayerType.A, BuildingType.Defense);
+            myEnergyBuildings = GetBuildings(PlayerType.A, BuildingType.Energy);
+
+            enemyAttackBuildings = GetBuildings(PlayerType.B, BuildingType.Attack);
+            enemyDefenceBuildings = GetBuildings(PlayerType.B, BuildingType.Defense);
+            enemyEnergyBuildings = GetBuildings(PlayerType.B, BuildingType.Energy);
 
             random = new Random((int) DateTime.Now.Ticks);
 
@@ -41,18 +60,11 @@ namespace StarterBot
                 return "";
             }
             
-            var opponentAttackBuildings = GetBuildings(PlayerType.B, BuildingType.Attack);
-
-            var myAttackBuildings = GetBuildings(PlayerType.A, BuildingType.Attack);
-            var myDefenseBuildings = GetBuildings(PlayerType.A, BuildingType.Defense);
-
-            var myBuildings = myAttackBuildings.Concat(myDefenseBuildings).ToList(); 
-            
-            var rows = GetUndefendedEnemyBuildingRows(opponentAttackBuildings, myDefenseBuildings);
-            return !opponentAttackBuildings.Any() ? GetRandomCommand(myBuildings) : (rows.Count > 0 ? GetValidAttackCommand(rows[0], myBuildings) : GetRandomCommand(myBuildings));
+            var rows = GetUndefendedEnemyBuildingRows();
+            return !enemyAttackBuildings.Any() || rows.Count == 0 ? GetRandomCommand() : GetValidAttackCommand(rows[0]);
         }
 
-        private string GetValidAttackCommand(int yCoordinate, List<CellStateContainer> myBuildings)
+        private string GetValidAttackCommand(int yCoordinate)
         {
             var xRandom = random.Next(mapWidth / 2);
 
@@ -64,7 +76,7 @@ namespace StarterBot
             return $"{xRandom},{yCoordinate},{(int)BuildingType.Defense}";
         }
 
-        private string GetRandomCommand(List<CellStateContainer> myBuildings)
+        private string GetRandomCommand()
         {
             var xRandom = random.Next(mapWidth / 2);
             var yRandom = random.Next(mapHeight);
@@ -79,10 +91,9 @@ namespace StarterBot
             return $"{xRandom},{yRandom},{btRandom}";
         }
         
-        private List<int> GetUndefendedEnemyBuildingRows(List<CellStateContainer> opponentAttackBuildings,
-            List<CellStateContainer> myDefenseBuildings)
+        private List<int> GetUndefendedEnemyBuildingRows()
         {
-            return opponentAttackBuildings.Select(enemyAttackBuilding => enemyAttackBuilding.Y).Where(y => !myDefenseBuildings.Any(myDefenseBuilding => myDefenseBuilding.Y == y)).ToList();
+            return enemyAttackBuildings.Select(enemyAttackBuilding => enemyAttackBuilding.Y).Where(y => !myDefenceBuildings.Any(myDefenseBuilding => myDefenseBuilding.Y == y)).ToList();
         }
         
         private List<CellStateContainer> GetBuildings(PlayerType playerType, BuildingType buildingType) 
