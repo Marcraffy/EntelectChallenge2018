@@ -134,7 +134,10 @@ namespace StarterBot
 
         private Phase GetPhase()
         {
-
+            if(player.Energy < attackStats.Price && player.Energy < defenseStats.Price && player.Energy < energyStats.Price )
+            {
+                return Phase.Nop;
+            }
             if (enemyBuildings.Count() == 0)
             {
                 if (enemyAttacks.Count() == 0)
