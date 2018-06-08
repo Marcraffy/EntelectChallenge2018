@@ -1,8 +1,8 @@
-﻿using System;
+﻿using StarterBot.Entities;
+using StarterBot.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using StarterBot.Entities;
-using StarterBot.Enums;
 
 namespace StarterBot
 {
@@ -13,6 +13,8 @@ namespace StarterBot
         private readonly BuildingStats attackStats;
         private readonly BuildingStats defenseStats;
         private readonly BuildingStats energyStats;
+        private readonly int minimumEnergy;
+        private readonly int maximumEnergy;
 
         private readonly int mapWidth;
         private readonly int mapHeight;
@@ -49,6 +51,8 @@ namespace StarterBot
             attackStats = gameState.GameDetails.BuildingsStats[BuildingType.Attack];
             defenseStats = gameState.GameDetails.BuildingsStats[BuildingType.Defense];
             energyStats = gameState.GameDetails.BuildingsStats[BuildingType.Energy];
+            minimumEnergy = Math.Min(attackStats.Price, Math.Min(defenseStats.Price, energyStats.Price));
+            maximumEnergy = Math.Max(attackStats.Price, Math.Max(defenseStats.Price, energyStats.Price));
 
             myAttackBuildings = GetBuildings(PlayerType.A, BuildingType.Attack);
             myDefenceBuildings = GetBuildings(PlayerType.A, BuildingType.Defense);
@@ -59,7 +63,7 @@ namespace StarterBot
             enemyEnergyBuildings = GetBuildings(PlayerType.B, BuildingType.Energy);
             enemyAttacks = GetEnemyAttacks();
 
-            random = new Random((int) DateTime.Now.Ticks);
+            random = new Random((int)DateTime.Now.Ticks);
 
             player = gameState.Players.Single(x => x.PlayerType == PlayerType.A);
         }
@@ -134,7 +138,7 @@ namespace StarterBot
 
         private Phase GetPhase()
         {
-            if(player.Energy < attackStats.Price && player.Energy < defenseStats.Price && player.Energy < energyStats.Price )
+            if (player.Energy < minimumEnergy)
             {
                 return Phase.Nop;
             }
@@ -168,18 +172,17 @@ namespace StarterBot
             }
 
             return Phase.Defend;
-
         }
 
         private List<int> GetUndefendedEnemyBuildingRows()
         {
             return enemyAttackBuildings.Select(enemyAttackBuilding => enemyAttackBuilding.Y).Where(y => !myDefenceBuildings.Any(myDefenseBuilding => myDefenseBuilding.Y == y)).ToList();
         }
-        
-        private List<CellStateContainer> GetBuildings(PlayerType playerType, BuildingType buildingType) 
+
+        private List<CellStateContainer> GetBuildings(PlayerType playerType, BuildingType buildingType)
         {
-            return gameState.GameMap.SelectMany(cellStateContainers => 
-                cellStateContainers.Where(cellStateContainer => 
+            return gameState.GameMap.SelectMany(cellStateContainers =>
+                cellStateContainers.Where(cellStateContainer =>
                     cellStateContainer.CellOwner == playerType && cellStateContainer.Buildings.Any(x => x.BuildingType == buildingType))).ToList();
         }
 
@@ -191,7 +194,5 @@ namespace StarterBot
                 cellStateContainers.Where(cellStateContainer =>
                     cellStateContainer.Missiles.Any(missile => missile.PlayerType == PlayerType.B))).ToList();
         }
-
-
     }
 }
