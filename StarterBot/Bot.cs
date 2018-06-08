@@ -30,6 +30,16 @@ namespace StarterBot
         private IEnumerable<CellStateContainer> enemyBuildings { get { return myAttackBuildings.Concat(myDefenceBuildings.Concat(myEnergyBuildings)); } }
         private IEnumerable<CellStateContainer> allBuildings { get { return myBuildings.Concat(enemyBuildings); } }
 
+        private IEnumerable<CellStateContainer> enemyAttacks;
+
+        private enum Phase
+        {
+            Attack,
+            Defend,
+            Save,
+            Nop
+        }
+
         public Bot(GameState gameState)
         {
             this.gameState = gameState;
@@ -47,6 +57,7 @@ namespace StarterBot
             enemyAttackBuildings = GetBuildings(PlayerType.B, BuildingType.Attack);
             enemyDefenceBuildings = GetBuildings(PlayerType.B, BuildingType.Defense);
             enemyEnergyBuildings = GetBuildings(PlayerType.B, BuildingType.Energy);
+            enemyAttacks = GetEnemyAttacks();
 
             random = new Random((int) DateTime.Now.Ticks);
 
@@ -55,32 +66,62 @@ namespace StarterBot
 
         public string Run()
         {
-            if (player.Energy < defenseStats.Price || player.Energy < energyStats.Price || player.Energy < attackStats.Price)
-            {
-                return "";
-            }
-            
-            var rows = GetUndefendedEnemyBuildingRows();
-            return !enemyAttackBuildings.Any() || rows.Count == 0 ? GetRandomCommand() : GetValidAttackCommand(rows[0]);
+            var phase = GetPhase();
+            return GetCommand(phase);
         }
 
-        private string GetValidAttackCommand(int yCoordinate)
+        private string GetCommand(Phase phase)
         {
-            var xRandom = random.Next(mapWidth / 2);
-
-            while (myBuildings.Any(x => x.X == xRandom && x.Y == yCoordinate && x.Buildings.Any()))
+            switch (phase)
             {
-                xRandom = random.Next(mapWidth / 2);
+                case Phase.Attack:
+                    {
+                        return GetBestAttackCommand();
+                    }
+                case Phase.Defend:
+                    {
+                        return GetBestDefendCommand();
+                    }
+                case Phase.Save:
+                    {
+                        return GetBestSaveCommand();
+                    }
+                default:
+                    {
+                        return "";
+                    }
             }
-
-            return $"{xRandom},{yCoordinate},{(int)BuildingType.Defense}";
         }
 
-        private string GetRandomCommand()
+        private string GetBestSaveCommand()
+        {
+            var yRandom = random.Next(mapHeight);
+
+            while (myBuildings.Any(x => x.X == 0 && x.Y == yRandom && x.Buildings.Any()))
+            {
+                yRandom = random.Next(mapHeight);
+            }
+
+            return $"{0},{yRandom},{(int)BuildingType.Energy}";
+        }
+
+        private string GetBestDefendCommand()
+        {
+            var yCoordinate = myDefenceBuildings.Where(building => (building.X == 1 || building.X == 2) && !building.Buildings.Any()).Select(building => building.Y).First();
+            if (!myBuildings.Any(x => x.X == 1 && x.Y == yCoordinate && x.Buildings.Any()))
+            {
+                return $"{1},{yCoordinate},{(int)BuildingType.Defense}";
+            }
+            else
+            {
+                return $"{2},{yCoordinate},{(int)BuildingType.Defense}";
+            }
+        }
+
+        private string GetBestAttackCommand()
         {
             var xRandom = random.Next(mapWidth / 2);
             var yRandom = random.Next(mapHeight);
-            var btRandom = random.Next(Enum.GetNames(typeof(BuildingType)).Length);
 
             while (myBuildings.Any(x => x.X == xRandom && x.Y == yRandom && x.Buildings.Any()))
             {
@@ -88,9 +129,45 @@ namespace StarterBot
                 yRandom = random.Next(mapHeight);
             }
 
-            return $"{xRandom},{yRandom},{btRandom}";
+            return $"{xRandom},{yRandom},{(int)BuildingType.Attack}";
         }
-        
+
+        private Phase GetPhase()
+        {
+
+            if (enemyBuildings.Count() == 0)
+            {
+                if (enemyAttacks.Count() == 0)
+                {
+                    if (myBuildings.Count() == 0)
+                    {
+                        return Phase.Attack;
+                    }
+                    if (myDefenceBuildings.Count() < 3)
+                    {
+                        return Phase.Defend;
+                    }
+
+                    return Phase.Save;
+                }
+
+                return Phase.Defend;
+            }
+
+            if (enemyAttacks.Count() == 0)
+            {
+                if (myAttackBuildings.Count() == 3)
+                {
+                    return Phase.Defend;
+                }
+
+                return Phase.Attack;
+            }
+
+            return Phase.Defend;
+
+        }
+
         private List<int> GetUndefendedEnemyBuildingRows()
         {
             return enemyAttackBuildings.Select(enemyAttackBuilding => enemyAttackBuilding.Y).Where(y => !myDefenceBuildings.Any(myDefenseBuilding => myDefenseBuilding.Y == y)).ToList();
@@ -102,5 +179,16 @@ namespace StarterBot
                 cellStateContainers.Where(cellStateContainer => 
                     cellStateContainer.CellOwner == playerType && cellStateContainer.Buildings.Any(x => x.BuildingType == buildingType))).ToList();
         }
+
+        private List<int> GetIncommingAttackRows() => enemyAttackBuildings.Select(building => building.Y).Where(r => Enumerable.Range(0, 4).Any(x => gameState.GameMap[r][x].Missiles.Any())).ToList();
+
+        private IEnumerable<CellStateContainer> GetEnemyAttacks()
+        {
+            return gameState.GameMap.SelectMany(cellStateContainers =>
+                cellStateContainers.Where(cellStateContainer =>
+                    cellStateContainer.Missiles.Any(missile => missile.PlayerType == PlayerType.B))).ToList();
+        }
+
+
     }
 }
